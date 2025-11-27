@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Öğrenci Stres Seviyesi Tahmini</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #f5f5f5;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .container {
+      margin-top: 40px;
+      width: 95%;
+      max-width: 980px;
+      background: #181818;
+      border-radius: 16px;
+      padding: 24px 28px 28px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+      border: 1px solid #333;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 26px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    p.desc {
+      font-size: 14px;
+      color: #bbb;
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    .guide {
+      background: #141414;
+      border-radius: 10px;
+      border: 1px solid #333;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      font-size: 13px;
+    }
+    .guide h2 {
+      margin: 0 0 6px 0;
+      font-size: 15px;
+    }
+    .guide ol {
+      padding-left: 18px;
+      margin: 6px 0 6px 0;
+    }
+    .guide li {
+      margin-bottom: 3px;
+    }
+    .guide .note {
+      margin: 6px 0 0 0;
+      color: #ffda9e;
+      font-size: 12px;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 12px 20px;
+      margin-bottom: 16px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    label {
+      font-size: 13px;
+      color: #f0f0f0;
+    }
+    .help {
+      font-size: 11px;
+      color: #999;
+    }
+    input[type="number"] {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #101010;
+      color: #f5f5f5;
+      font-size: 13px;
+      outline: none;
+    }
+    input[type="number"]:focus {
+      border-color: #4f8cff;
+      box-shadow: 0 0 0 1px rgba(79,140,255,0.5);
+    }
+    .actions {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    button {
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      background: #4f8cff;
+      color: #fff;
+      transition: background 0.15s ease, transform 0.08s ease;
+    }
+    button:hover {
+      background: #3c71d0;
+      transform: translateY(-1px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+
+    .result {
+      margin-top: 10px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: #151515;
+      border: 1px solid #333;
+      font-size: 14px;
+      min-height: 48px;
+    }
+    .result-empty {
+      color: #777;
+    }
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .badge-low {
+      background: #163926;
+      color: #b2f5ea;
+      border: 1px solid #2f855a;
+    }
+    .badge-medium {
+      background: #3b3420;
+      color: #f6e05e;
+      border: 1px solid #d69e2e;
+    }
+    .badge-high {
+      background: #3a1515;
+      color: #fed7d7;
+      border: 1px solid #f56565;
+    }
+    .result-title {
+      font-weight: 500;
+    }
+    .result-explainer {
+      font-size: 13px;
+      color: #ccc;
+      margin-bottom: 6px;
+    }
+    .result-probs {
+      font-size: 13px;
+      color: #ccc;
+      margin-top: 6px;
+    }
+    .result-probs ul {
+      margin: 4px 0 0 16px;
+      padding-left: 0;
+    }
+    .result-probs li {
+      margin-bottom: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Öğrenci Stres Seviyesi Tahmini</h1>
+    <p class="desc">
+      Aşağıdaki sorular, bir öğrencinin günlük yaşamıyla ve akademik durumu ile ilgili 0–100 arası puanlardır.
+      Değerleri doldurup <strong>Tahmin Et</strong> butonuna bastığınızda, sistem öğrencinin tahmini stres düzeyini hesaplar.
+    </p>
+
+    <div class="guide">
+      <h2>Nasıl Kullanılır?</h2>
+      <ol>
+        <li>Her alan için 0 ile 100 arasında bir değer girin.</li>
+        <li>0, ilgili durumun hiç olmadığını veya çok düşük olduğunu; 100 ise çok yüksek / çok sık olduğunu temsil eder.</li>
+        <li>Tüm alanlar doldurulduktan sonra <strong>Tahmin Et</strong> butonuna tıklayın.</li>
+        <li>Sonuç bölümünde tahmini stres düzeyi (düşük, orta, yüksek) ve her seviye için olasılık yüzdeleri gösterilir.</li>
+      </ol>
+      <p class="note">
+        Not: Bu araç yalnızca eğitim ve örnek amaçlıdır; klinik tanı veya psikolojik danışmanlık yerine kullanılmamalıdır.
+      </p>
+    </div>
+
+    {% set descriptions = {
+      "anxiety_level": "Öğrencinin kaygı düzeyi (0 = hiç kaygı yok, 100 = çok yoğun kaygı).",
+      "self_esteem": "Öğrencinin öz güven algısı (0 = çok düşük, 100 = çok yüksek).",
+      "mental_health_history": "Geçmiş ruh sağlığı sorunlarının şiddeti / etkisi (0 = yok, 100 = çok belirgin).",
+      "depression": "Depresif hissetme düzeyi (0 = hiç, 100 = çok yoğun).",
+      "headache": "Baş ağrısı sıklığı / şiddeti (0 = hiç, 100 = çok sık / çok şiddetli).",
+      "blood_pressure": "Strese bağlı tansiyon problemleri algısı (0 = hiç, 100 = çok ciddi).",
+      "sleep_quality": "Uyku kalitesi (0 = çok kötü, 100 = çok iyi).",
+      "breathing_problem": "Nefes darlığı / göğüs sıkışması gibi şikayetlerin düzeyi (0 = hiç, 100 = çok yoğun).",
+      "noise_level": "Gündelik ortam gürültü seviyesi (0 = çok sessiz, 100 = çok gürültülü).",
+      "living_conditions": "Yaşam koşullarının (ev, oda, düzen) yeterlilik düzeyi (0 = çok yetersiz, 100 = çok iyi).",
+      "safety": "Kendini güvende hissetme düzeyi (0 = hiç güvende hissetmiyor, 100 = tamamen güvende).",
+      "basic_needs": "Temel ihtiyaçların (yemek, uyku, barınma) karşılanma düzeyi (0 = hiç, 100 = tamamen karşılanıyor).",
+      "academic_performance": "Akademik başarı algısı (0 = çok düşük, 100 = çok yüksek).",
+      "study_load": "Günlük/haftalık çalışma ve ödev yükü (0 = çok hafif, 100 = aşırı ağır).",
+      "teacher_student_relationship": "Öğretmen-öğrenci ilişkisi kalitesi (0 = çok kötü, 100 = çok iyi).",
+      "future_career_concerns": "Gelecek kariyerle ilgili kaygı düzeyi (0 = hiç kaygı yok, 100 = çok yoğun kaygı).",
+      "social_support": "Aile / arkadaş / çevreden alınan sosyal destek düzeyi (0 = hiç destek yok, 100 = çok güçlü destek).",
+      "peer_pressure": "Arkadaş baskısı hissetme düzeyi (0 = hiç, 100 = çok yoğun).",
+      "extracurricular_activities": "Kulüp, hobi, spor gibi etkinliklere katılım düzeyi (0 = hiç, 100 = çok aktif).",
+      "bullying": "Zorbalığa maruz kalma düzeyi (0 = hiç, 100 = çok sık / çok şiddetli)."
+    } %}
+
+    <form id="predict-form">
+      {% for feat in feature_names %}
+      <div class="field">
+        <label for="{{ feat|replace(' ', '_') }}">{{ feat }}</label>
+        <span class="help">
+          {{ descriptions.get(feat, "Bu değişken için 0 ile 100 arasında uygun bir puan girin.") }}
+        </span>
+        <input
+          type="number"
+          step="1"
+          min="0"
+          max="100"
+          id="{{ feat|replace(' ', '_') }}"
+          name="{{ feat }}"
+          required
+        />
+      </div>
+      {% endfor %}
+
+      <div class="actions">
+        <button type="submit">Tahmin Et</button>
+      </div>
+    </form>
+
+    <div id="result" class="result result-empty">
+      Henüz bir tahmin yapılmadı. Formu doldurup Tahmin Et butonuna basın.
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("predict-form");
+    const resultDiv = document.getElementById("result");
+
+    const LABEL_MAP = {
+      "0": {
+        label: "Düşük Stres Düzeyi",
+        explainer:
+          "Bu girdilere göre model, öğrencinin genel stres düzeyini düşük olarak tahmin ediyor. " +
+          "Bu, belirtilerin görece hafif olduğu ve baş etme kaynaklarının görece iyi olduğu anlamına gelebilir."
+      },
+      "1": {
+        label: "Orta Stres Düzeyi",
+        explainer:
+          "Bu girdilere göre model, öğrencinin stres düzeyini orta seviyede tahmin ediyor. " +
+          "Bazı alanlarda zorlanmalar mevcut; düzenli takip ve destek faydalı olabilir."
+      },
+      "2": {
+        label: "Yüksek Stres Düzeyi",
+        explainer:
+          "Bu girdilere göre model, öğrencinin stres düzeyini yüksek olarak tahmin ediyor. " +
+          "Bu, belirtilerin belirgin olduğu ve profesyonel destek veya kurum içi rehberlik birimleriyle görüşmenin " +
+          "yararlı olabileceği anlamına gelebilir."
+      }
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+      const payload = {};
+
+      for (const [key, value] of formData.entries()) {
+        const num = Number(value);
+        payload[key] = isNaN(num) ? 0 : num;
+      }
+
+      resultDiv.classList.remove("result-empty");
+      resultDiv.textContent = "Tahmin yapılıyor...";
+
+      try {
+        const resp = await fetch("/predict", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+          const txt = await resp.text();
+          resultDiv.textContent = "Hata: " + txt;
+          return;
+        }
+
+        const data = await resp.json();
+        const predRaw = String(data.predicted_label);
+        const info = LABEL_MAP[predRaw] || {
+          label: "Bilinmeyen stres seviyesi (" + predRaw + ")",
+          explainer:
+            "Model bu girdiler için standart etiketlerden birine eşleşmeyen bir çıktı üretti."
+        };
+
+        let badgeClass = "badge-low";
+        if (predRaw === "1") badgeClass = "badge-medium";
+        if (predRaw === "2") badgeClass = "badge-high";
+
+        let html = "";
+
+        html += '<div class="result-header">';
+        html += '<span class="badge ' + badgeClass + '">' + info.label + "</span>";
+        html += '<span class="result-title">Tahmin Sonucu</span>';
+        html += "</div>";
+
+        html +=
+          '<div class="result-explainer">' +
+          info.explainer +
+          "</div>";
+
+        if (data.probabilities) {
+          html += '<div class="result-probs">';
+          html +=
+            "Aşağıdaki yüzdeler, modelin her stres düzeyi için hesapladığı olasılık tahminlerini gösterir:";
+          html += "<ul>";
+
+          for (const [cls, p] of Object.entries(data.probabilities)) {
+            const labelInfo = LABEL_MAP[String(cls)];
+            const niceLabel = labelInfo ? labelInfo.label : "Seviye " + cls;
+            html +=
+              "<li>" +
+              niceLabel +
+              ": " +
+              (p * 100).toFixed(1) +
+              "%</li>";
+          }
+
+          html += "</ul>";
+          html +=
+            "<p style=\"margin-top:6px; font-size:12px; color:#999;\">" +
+            "Toplam yüzde her zaman yaklaşık 100 eder; en yüksek yüzde, modelin en olası gördüğü stresi gösterir." +
+            "</p>";
+          html += "</div>";
+        }
+
+        resultDiv.innerHTML = html;
+      } catch (err) {
+        resultDiv.textContent = "İstek hatası: " + err;
+      }
+    });
+  </script>
+</body>
+</html>

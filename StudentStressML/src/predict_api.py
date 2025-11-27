@@ -4,37 +4,39 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 
-# --- Yollar ---
+# --- Yol ayarları ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 MODEL_PATH = os.path.join(MODELS_DIR, "best_model.pkl")
 FEATURES_PATH = os.path.join(MODELS_DIR, "feature_names.json")
 
 if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"Model bulunamadı: {MODEL_PATH}. Önce train_model.py dosyasını çalıştır.")
+    raise FileNotFoundError(
+        f"Model bulunamadı: {MODEL_PATH}. Önce train_model.py dosyasını çalıştır."
+    )
 
 if not os.path.exists(FEATURES_PATH):
-    raise FileNotFoundError(f"Özellik listesi bulunamadı: {FEATURES_PATH}. Önce train_model.py dosyasını çalıştır.")
+    raise FileNotFoundError(
+        f"Özellik listesi bulunamadı: {FEATURES_PATH}. Önce train_model.py dosyasını çalıştır."
+    )
 
+# Model ve özellik isimlerini yükle
 model = joblib.load(MODEL_PATH)
 with open(FEATURES_PATH, "r", encoding="utf-8") as f:
     feature_names = json.load(f)
 
-# 0,1,2 -> isim (gerekirse değiştir)
-STRESS_LABELS = {
-    0: "low",
-    1: "medium",
-    2: "high",
-}
-
-app = Flask(__name__)
+# Flask uygulaması (templates klasörünü belirt)
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+)
 
 
 def make_input_dataframe(data: dict) -> pd.DataFrame:
     """
-    data: JSON içinden gelen tek gözlem (dict).
+    JSON'dan gelen tek gözlemi DataFrame'e çevir.
     Eksik feature'lar 0 ile doldurulur.
     Fazla key'ler yok sayılır.
     """
@@ -50,38 +52,46 @@ def root():
     return jsonify({"status": "ok", "message": "Student stress prediction API"})
 
 
+@app.route("/ui", methods=["GET"])
+def ui():
+    """
+    Basit web arayüzü.
+    feature_names -> index.html içinde form alanları olarak kullanılıyor.
+    """
+    return render_template("index.html", feature_names=feature_names)
+
+
 @app.route("/predict", methods=["POST"])
 def predict():
     """
     Beklenen JSON örneği:
     {
-        "anxiety_level": 14,
-        "self_esteem": 20,
+        "feature1": 1.2,
+        "feature2": 3.4,
         ...
     }
-    Feature isimleri train_model.py ile kaydedilen feature_names.json ile aynı olmalı.
+    Anahtar isimleri feature_names.json ile aynı olmalı.
     """
     if not request.is_json:
         return jsonify({"error": "JSON body bekleniyor."}), 400
 
     data = request.get_json()
     df_input = make_input_dataframe(data)
+
+    # Tahmin
     pred = model.predict(df_input)[0]
 
-    # Olasılık varsa ekle
+    # Olasılıklar (varsa)
     proba = None
     if hasattr(model, "predict_proba"):
         proba_arr = model.predict_proba(df_input)[0]
         proba = {
-            int(cls): float(p)
-            for cls, p in zip(sorted(np.unique(model.classes_)), proba_arr)
+            str(cls): float(p)
+            for cls, p in zip(model.classes_, proba_arr)
         }
 
-    label = STRESS_LABELS.get(int(pred), str(pred))
-
     resp = {
-        "predicted_class": int(pred),
-        "predicted_label": label,
+        "predicted_label": str(pred),
     }
     if proba is not None:
         resp["probabilities"] = proba
