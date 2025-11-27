@@ -1,0 +1,5 @@
+model,accuracy
+logistic_regression,0.8818181818181818
+knn,0.85
+svm_rbf,0.8772727272727273
+random_forest,0.8863636363636364
