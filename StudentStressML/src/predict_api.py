@@ -11,6 +11,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 MODEL_PATH = os.path.join(MODELS_DIR, "best_model.pkl")
 FEATURES_PATH = os.path.join(MODELS_DIR, "feature_names.json")
+RANGES_PATH = os.path.join(MODELS_DIR, "feature_ranges.json")
 
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(
@@ -22,16 +23,59 @@ if not os.path.exists(FEATURES_PATH):
         f"Özellik listesi bulunamadı: {FEATURES_PATH}. Önce train_model.py dosyasını çalıştır."
     )
 
-# Model ve özellik isimlerini yükle
+if not os.path.exists(RANGES_PATH):
+    raise FileNotFoundError(
+        f"Özellik aralıkları bulunamadı: {RANGES_PATH}. Önce train_model.py dosyasını çalıştır."
+    )
+
+# Model ve metadata'yı yükle
 model = joblib.load(MODEL_PATH)
+
 with open(FEATURES_PATH, "r", encoding="utf-8") as f:
     feature_names = json.load(f)
+
+with open(RANGES_PATH, "r", encoding="utf-8") as f:
+    feature_ranges = json.load(f)
 
 # Flask uygulaması (templates klasörünü belirt)
 app = Flask(
     __name__,
     template_folder=os.path.join(BASE_DIR, "templates"),
 )
+
+
+def scale_ui_to_dataset(data: dict) -> dict:
+    """
+    Arayüzden gelen 0–100 değerlerini, veri setindeki gerçek min–max
+    aralıklarına ölçekler.
+    """
+    scaled = {}
+
+    for col in feature_names:
+        raw_val = data.get(col, 0)
+
+        try:
+            v = float(raw_val)
+        except (TypeError, ValueError):
+            v = 0.0
+
+        # 0–100 aralığına sıkıştır
+        if v < 0:
+            v = 0.0
+        if v > 100:
+            v = 100.0
+
+        ranges = feature_ranges.get(col)
+        if ranges is not None:
+            min_v = float(ranges.get("min", 0.0))
+            max_v = float(ranges.get("max", 1.0))
+            if max_v > min_v:
+                # 0–100'den [min,max] aralığına lineer ölçekleme
+                v = min_v + (max_v - min_v) * (v / 100.0)
+
+        scaled[col] = v
+
+    return scaled
 
 
 def make_input_dataframe(data: dict) -> pd.DataFrame:
@@ -76,7 +120,10 @@ def predict():
         return jsonify({"error": "JSON body bekleniyor."}), 400
 
     data = request.get_json()
-    df_input = make_input_dataframe(data)
+
+    # 0–100'leri veri setinin aralığına ölçekle
+    scaled_data = scale_ui_to_dataset(data)
+    df_input = make_input_dataframe(scaled_data)
 
     # Tahmin
     pred = model.predict(df_input)[0]
