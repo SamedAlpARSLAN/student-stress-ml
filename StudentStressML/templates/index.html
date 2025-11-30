@@ -187,6 +187,68 @@
     .result-probs li {
       margin-bottom: 2px;
     }
+
+    /* Grafik stilleri */
+    .chart-box {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #444;
+      font-size: 13px;
+      color: #ccc;
+    }
+    .chart-rows {
+      margin-top: 6px;
+    }
+    .chart-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .chart-label {
+      width: 130px;
+      font-size: 12px;
+      color: #ddd;
+    }
+    .chart-bar {
+      flex: 1;
+      position: relative;
+      height: 12px;
+      border-radius: 999px;
+      background: #222;
+      overflow: hidden;
+    }
+    .chart-bar-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      border-radius: inherit;
+    }
+    .chart-bar-fill-low {
+      background: #38a169;
+    }
+    .chart-bar-fill-medium {
+      background: #d69e2e;
+    }
+    .chart-bar-fill-high {
+      background: #e53e3e;
+    }
+    .chart-bar-value {
+      width: 46px;
+      text-align: right;
+      font-size: 12px;
+      color: #aaa;
+    }
+    .chart-comment {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #bbb;
+      font-style: italic;
+      line-height: 1.5;
+      border-top: 1px solid #333;
+      padding-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -203,10 +265,10 @@
         <li>Her alan için 0 ile 100 arasında bir değer girin.</li>
         <li>0, ilgili durumun hiç olmadığını veya çok düşük olduğunu; 100 ise çok yüksek / çok sık olduğunu temsil eder.</li>
         <li>Tüm alanlar doldurulduktan sonra <strong>Tahmin Et</strong> butonuna tıklayın.</li>
-        <li>Sonuç bölümünde tahmini stres düzeyi (düşük, orta, yüksek) ve her seviye için olasılık yüzdeleri gösterilir.</li>
+        <li>Sonuç bölümünde tahmini stres düzeyi ve her seviye için olasılıklar gösterilir.</li>
       </ol>
       <p class="note">
-        Not: Bu araç yalnızca eğitim ve örnek amaçlıdır; klinik tanı veya psikolojik danışmanlık yerine kullanılmamalıdır.
+        Not: Bu araç yalnızca eğitim ve örnek amaçlıdır.
       </p>
     </div>
 
@@ -266,26 +328,37 @@
     const form = document.getElementById("predict-form");
     const resultDiv = document.getElementById("result");
 
+    // "0", "1", "2" numaralı sınıfların "low", "medium", "high" anahtarlarına dönüşümü
+    const CLASS_TO_KEY = {
+      "0": "low",
+      "1": "medium",
+      "2": "high"
+    };
+
+    // Her anahtar için başlık ve kısa açıklama
     const LABEL_MAP = {
-      "0": {
+      "low": {
         label: "Düşük Stres Düzeyi",
-        explainer:
-          "Bu girdilere göre model, öğrencinin genel stres düzeyini düşük olarak tahmin ediyor. " +
-          "Bu, belirtilerin görece hafif olduğu ve baş etme kaynaklarının görece iyi olduğu anlamına gelebilir."
+        explainer: "Model, öğrencinin stres düzeyini yönetilebilir ve düşük seviyede tahmin ediyor."
       },
-      "1": {
+      "medium": {
         label: "Orta Stres Düzeyi",
-        explainer:
-          "Bu girdilere göre model, öğrencinin stres düzeyini orta seviyede tahmin ediyor. " +
-          "Bazı alanlarda zorlanmalar mevcut; düzenli takip ve destek faydalı olabilir."
+        explainer: "Model, öğrencinin stres düzeyini orta seviyede tahmin ediyor; bazı zorlanmalar mevcut olabilir."
       },
-      "2": {
+      "high": {
         label: "Yüksek Stres Düzeyi",
-        explainer:
-          "Bu girdilere göre model, öğrencinin stres düzeyini yüksek olarak tahmin ediyor. " +
-          "Bu, belirtilerin belirgin olduğu ve profesyonel destek veya kurum içi rehberlik birimleriyle görüşmenin " +
-          "yararlı olabileceği anlamına gelebilir."
+        explainer: "Model, öğrencinin stres düzeyini yüksek olarak tahmin ediyor; belirgin stres belirtileri görünüyor."
       }
+    };
+
+    // Aşağıdaki yorum kısmı (Sizin istediğiniz özel cümleler)
+    const CHART_COMMENT_MAP = {
+      "low":
+        "Harika haber! Analiz sonuçları stres seviyenizin düşük ve sağlıklı bir dengede olduğunu gösteriyor. Mevcut rutininizi, uyku düzeninizi ve sosyal aktivitelerinizi koruyarak bu olumlu tabloyu sürdürebilirsiniz.",
+      "medium":
+        "Sonuçlar orta seviyede bir stres yüküne işaret ediyor. Bu, harekete geçmek için iyi bir zaman; çalışma temponuzla dinlenme aralarını dengelemek ve size iyi gelen aktivitelere biraz daha zaman ayırmak rahatlamanıza yardımcı olacaktır.",
+      "high":
+        "Dikkat! Analiz sonuçları yüksek stres düzeyine işaret ediyor. Bu yükü tek başınıza taşımak zorunda değilsiniz. Güvendiğiniz bir yakınınızla konuşmak, okul rehberlik birimine danışmak veya profesyonel bir destek almak, bu süreci daha kolay atlatmanızı sağlayacaktır."
     };
 
     form.addEventListener("submit", async (e) => {
@@ -305,9 +378,7 @@
       try {
         const resp = await fetch("/predict", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
@@ -318,55 +389,100 @@
         }
 
         const data = await resp.json();
-        const predRaw = String(data.predicted_label);
-        const info = LABEL_MAP[predRaw] || {
-          label: "Bilinmeyen stres seviyesi (" + predRaw + ")",
-          explainer:
-            "Model bu girdiler için standart etiketlerden birine eşleşmeyen bir çıktı üretti."
-        };
 
+        // 1. ADIM: Backend'den gelen değeri String'e çevirip güvenli bir şekilde anahtara (low/medium/high) dönüştürelim.
+        const rawLabel = String(data.predicted_label); // "0", "1", "2" veya "low" gelebilir.
+        
+        let predKey = null;
+
+        // Eğer backend doğrudan "low", "medium" döndürdüyse:
+        if (LABEL_MAP[rawLabel]) {
+          predKey = rawLabel;
+        } 
+        // Eğer backend "0", "1", "2" döndürdüyse:
+        else if (CLASS_TO_KEY[rawLabel]) {
+          predKey = CLASS_TO_KEY[rawLabel];
+        }
+
+        // Eğer hala bulunamadıysa fallback:
+        if (!predKey) {
+            resultDiv.innerHTML = `<div class="result-header"><span class="badge badge-medium">Bilinmeyen</span><span class="result-title">Hata</span></div><div>Model sonucu anlaşılamadı: ${rawLabel}</div>`;
+            return;
+        }
+
+        const info = LABEL_MAP[predKey];
+        const comment = CHART_COMMENT_MAP[predKey];
+
+        // Renk sınıfını belirle
         let badgeClass = "badge-low";
-        if (predRaw === "1") badgeClass = "badge-medium";
-        if (predRaw === "2") badgeClass = "badge-high";
+        if (predKey === "medium") badgeClass = "badge-medium";
+        if (predKey === "high") badgeClass = "badge-high";
 
         let html = "";
 
+        // ÜST KISIM: Badge + Başlık
         html += '<div class="result-header">';
-        html += '<span class="badge ' + badgeClass + '">' + info.label + "</span>";
+        html += `<span class="badge ${badgeClass}">${info.label}</span>`;
         html += '<span class="result-title">Tahmin Sonucu</span>';
         html += "</div>";
 
-        html +=
-          '<div class="result-explainer">' +
-          info.explainer +
-          "</div>";
+        // Kısa Açıklama
+        html += `<div class="result-explainer">${info.explainer}</div>`;
 
+        // Olasılıklar ve Grafik
         if (data.probabilities) {
           html += '<div class="result-probs">';
-          html +=
-            "Aşağıdaki yüzdeler, modelin her stres düzeyi için hesapladığı olasılık tahminlerini gösterir:";
+          html += "Aşağıdaki yüzdeler, modelin her stres düzeyi için hesapladığı olasılıkları gösterir:";
           html += "<ul>";
 
-          for (const [cls, p] of Object.entries(data.probabilities)) {
-            const labelInfo = LABEL_MAP[String(cls)];
-            const niceLabel = labelInfo ? labelInfo.label : "Seviye " + cls;
-            html +=
-              "<li>" +
-              niceLabel +
-              ": " +
-              (p * 100).toFixed(1) +
-              "%</li>";
-          }
+          const probEntries = Object.entries(data.probabilities);
 
-          html += "</ul>";
-          html +=
-            "<p style=\"margin-top:6px; font-size:12px; color:#999;\">" +
-            "Toplam yüzde her zaman yaklaşık 100 eder; en yüksek yüzde, modelin en olası gördüğü stresi gösterir." +
-            "</p>";
-          html += "</div>";
+          for (const [cls, p] of probEntries) {
+            // cls: "0", "1", "2" -> bunu isme çevirelim
+            const clsStrLocal = String(cls);
+            const keyLocal = CLASS_TO_KEY[clsStrLocal] || clsStrLocal; 
+            const labelObj = LABEL_MAP[keyLocal];
+            const niceLabel = labelObj ? labelObj.label : "Seviye " + clsStrLocal;
+            
+            html += `<li>${niceLabel}: ${(p * 100).toFixed(1)}%</li>`;
+          }
+          html += "</ul></div>";
+
+          // Grafik Kutusu
+          html += '<div class="chart-box">';
+          html += "Olasılık dağılımının görsel gösterimi:";
+          html += '<div class="chart-rows">';
+
+          for (const [cls, p] of probEntries) {
+            const clsStrLocal = String(cls);
+            const keyLocal = CLASS_TO_KEY[clsStrLocal] || clsStrLocal;
+            const labelObj = LABEL_MAP[keyLocal];
+            const niceLabel = labelObj ? labelObj.label : "Seviye " + clsStrLocal;
+            const pct = (p * 100).toFixed(1);
+
+            let fillClass = "chart-bar-fill-low";
+            if (keyLocal === "medium") fillClass = "chart-bar-fill-medium";
+            if (keyLocal === "high") fillClass = "chart-bar-fill-high";
+
+            html += `
+              <div class="chart-row">
+                <div class="chart-label">${niceLabel}</div>
+                <div class="chart-bar">
+                  <div class="chart-bar-fill ${fillClass}" style="width:${pct}%;"></div>
+                </div>
+                <div class="chart-bar-value">${pct}%</div>
+              </div>
+            `;
+          }
+          html += "</div>"; // chart-rows sonu
+
+          // EN ALTTAKİ YORUM (Artık predKey ile uyumlu)
+          html += `<p class="chart-comment">${comment}</p>`;
+          html += "</div>"; // chart-box sonu
         }
 
         resultDiv.innerHTML = html;
+
       } catch (err) {
         resultDiv.textContent = "İstek hatası: " + err;
       }
